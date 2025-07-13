@@ -22,7 +22,7 @@
     "allowUnreachableCode": false,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "noPropertyAccessFromIndexSignature": false,
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],

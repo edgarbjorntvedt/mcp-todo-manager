@@ -100,7 +100,7 @@ async function saveTodos(todos) {
 }
 // Tool definitions
 const TOOLS = {
-    "todo:add": {
+    "todo_add": {
         description: "Add a new task to the todo list",
         inputSchema: {
             type: "object",
@@ -125,7 +125,7 @@ const TOOLS = {
             required: ["project", "title"]
         }
     },
-    "todo:list": {
+    "todo_list": {
         description: "List all tasks or filter by project, status, priority, or tags",
         inputSchema: {
             type: "object",
@@ -155,7 +155,7 @@ const TOOLS = {
             }
         }
     },
-    "todo:update": {
+    "todo_update": {
         description: "Update an existing task",
         inputSchema: {
             type: "object",
@@ -190,7 +190,7 @@ const TOOLS = {
             required: ["id"]
         }
     },
-    "todo:delete": {
+    "todo_delete": {
         description: "Delete a task",
         inputSchema: {
             type: "object",
@@ -200,7 +200,7 @@ const TOOLS = {
             required: ["id"]
         }
     },
-    "todo:summary": {
+    "todo_summary": {
         description: "Get a summary of tasks by project and status",
         inputSchema: {
             type: "object",
@@ -209,7 +209,7 @@ const TOOLS = {
             }
         }
     },
-    "todo:help": {
+    "todo_help": {
         description: "Get help on using the todo manager",
         inputSchema: {
             type: "object",
@@ -235,7 +235,7 @@ async function main() {
         },
     });
     // Handle tool listing
-    server.setRequestHandler(types_js_1.ListToolsResultSchema, async () => {
+    server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
         return {
             tools: Object.entries(TOOLS).map(([name, schema]) => ({
                 name,
@@ -245,27 +245,29 @@ async function main() {
         };
     });
     // Handle tool calls
-    server.setRequestHandler(types_js_1.CallToolResultSchema, async (request) => {
+    server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
         if (!TOOLS[name]) {
             throw new types_js_1.McpError(types_js_1.ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
+        // Type the args for easier access
+        const typedArgs = args;
         try {
             switch (name) {
-                case "todo:add": {
+                case "todo_add": {
                     const todos = await loadTodos();
                     const newTask = {
                         id: `task-${todos.nextId.toString().padStart(3, '0')}`,
-                        project: args.project,
-                        title: args.title,
-                        description: args.description,
-                        priority: args.priority || "medium",
+                        project: typedArgs.project,
+                        title: typedArgs.title,
+                        description: typedArgs.description,
+                        priority: typedArgs.priority || "medium",
                         status: "open",
                         created: new Date().toISOString(),
                         updated: new Date().toISOString(),
-                        due: args.due,
-                        tags: args.tags || [],
-                        assignee: args.assignee,
+                        due: typedArgs.due,
+                        tags: typedArgs.tags || [],
+                        assignee: typedArgs.assignee,
                         notes: []
                     };
                     todos.tasks.push(newTask);
@@ -280,21 +282,21 @@ async function main() {
                         ],
                     };
                 }
-                case "todo:list": {
+                case "todo_list": {
                     const todos = await loadTodos();
                     let filtered = todos.tasks;
                     // Apply filters
-                    if (args.project) {
-                        filtered = filtered.filter(t => t.project === args.project);
+                    if (typedArgs.project) {
+                        filtered = filtered.filter(t => t.project === typedArgs.project);
                     }
-                    if (args.status) {
-                        filtered = filtered.filter(t => t.status === args.status);
+                    if (typedArgs.status) {
+                        filtered = filtered.filter(t => t.status === typedArgs.status);
                     }
-                    if (args.priority) {
-                        filtered = filtered.filter(t => t.priority === args.priority);
+                    if (typedArgs.priority) {
+                        filtered = filtered.filter(t => t.priority === typedArgs.priority);
                     }
-                    if (args.tags && args.tags.length > 0) {
-                        filtered = filtered.filter(t => t.tags && args.tags.some((tag) => t.tags.includes(tag)));
+                    if (typedArgs.tags && Array.isArray(typedArgs.tags) && typedArgs.tags.length > 0) {
+                        filtered = filtered.filter(t => t.tags && typedArgs.tags.some((tag) => t.tags.includes(tag)));
                     }
                     // Sort by priority and creation date
                     const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -306,7 +308,7 @@ async function main() {
                     });
                     // Format output
                     let output = "";
-                    if (args.format === "summary") {
+                    if (typedArgs.format === "summary") {
                         output = `📋 Found ${filtered.length} tasks\n`;
                         const byStatus = filtered.reduce((acc, t) => {
                             acc[t.status] = (acc[t.status] || 0) + 1;
@@ -316,7 +318,7 @@ async function main() {
                             output += `  ${status}: ${count}\n`;
                         }
                     }
-                    else if (args.format === "detailed") {
+                    else if (typedArgs.format === "detailed") {
                         output = filtered.map(t => {
                             let taskStr = `\n📌 ${t.id} - ${t.title}\n`;
                             taskStr += `   Project: ${t.project} | Priority: ${t.priority} | Status: ${t.status}\n`;
@@ -356,40 +358,40 @@ async function main() {
                         content: [{ type: "text", text: output }],
                     };
                 }
-                case "todo:update": {
+                case "todo_update": {
                     const todos = await loadTodos();
-                    const taskIndex = todos.tasks.findIndex(t => t.id === args.id);
+                    const taskIndex = todos.tasks.findIndex(t => t.id === typedArgs.id);
                     if (taskIndex === -1) {
-                        throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, `Task not found: ${args.id}`);
+                        throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, `Task not found: ${typedArgs.id}`);
                     }
-                    const task = todos.tasks[taskIndex];
+                    const task = todos.tasks[taskIndex]; // We know it exists because we checked above
                     // Update fields
-                    if (args.title !== undefined)
-                        task.title = args.title;
-                    if (args.description !== undefined)
-                        task.description = args.description;
-                    if (args.priority !== undefined)
-                        task.priority = args.priority;
-                    if (args.status !== undefined)
-                        task.status = args.status;
-                    if (args.due !== undefined)
-                        task.due = args.due;
-                    if (args.assignee !== undefined)
-                        task.assignee = args.assignee;
+                    if (typedArgs.title !== undefined)
+                        task.title = typedArgs.title;
+                    if (typedArgs.description !== undefined)
+                        task.description = typedArgs.description;
+                    if (typedArgs.priority !== undefined)
+                        task.priority = typedArgs.priority;
+                    if (typedArgs.status !== undefined)
+                        task.status = typedArgs.status;
+                    if (typedArgs.due !== undefined)
+                        task.due = typedArgs.due;
+                    if (typedArgs.assignee !== undefined)
+                        task.assignee = typedArgs.assignee;
                     // Handle tags
-                    if (args.addTags) {
-                        task.tags = [...new Set([...(task.tags || []), ...args.addTags])];
+                    if (typedArgs.addTags && Array.isArray(typedArgs.addTags)) {
+                        task.tags = [...new Set([...(task.tags || []), ...typedArgs.addTags])];
                     }
-                    if (args.removeTags) {
-                        task.tags = (task.tags || []).filter(t => !args.removeTags.includes(t));
+                    if (typedArgs.removeTags && Array.isArray(typedArgs.removeTags)) {
+                        task.tags = (task.tags || []).filter(t => !typedArgs.removeTags.includes(t));
                     }
                     // Add note
-                    if (args.addNote) {
+                    if (typedArgs.addNote) {
                         if (!task.notes)
                             task.notes = [];
                         task.notes.push({
                             timestamp: new Date().toISOString(),
-                            content: args.addNote
+                            content: typedArgs.addNote
                         });
                     }
                     task.updated = new Date().toISOString();
@@ -403,11 +405,11 @@ async function main() {
                         ],
                     };
                 }
-                case "todo:delete": {
+                case "todo_delete": {
                     const todos = await loadTodos();
-                    const taskIndex = todos.tasks.findIndex(t => t.id === args.id);
+                    const taskIndex = todos.tasks.findIndex(t => t.id === typedArgs.id);
                     if (taskIndex === -1) {
-                        throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, `Task not found: ${args.id}`);
+                        throw new types_js_1.McpError(types_js_1.ErrorCode.InvalidParams, `Task not found: ${typedArgs.id}`);
                     }
                     const [deleted] = todos.tasks.splice(taskIndex, 1);
                     await saveTodos(todos);
@@ -420,17 +422,17 @@ async function main() {
                         ],
                     };
                 }
-                case "todo:summary": {
+                case "todo_summary": {
                     const todos = await loadTodos();
                     let tasks = todos.tasks;
-                    if (args.project) {
-                        tasks = tasks.filter(t => t.project === args.project);
+                    if (typedArgs.project) {
+                        tasks = tasks.filter(t => t.project === typedArgs.project);
                     }
                     // Group by project
                     const byProject = tasks.reduce((acc, t) => {
                         if (!acc[t.project])
                             acc[t.project] = [];
-                        acc[t.project].push(t);
+                        acc[t.project].push(t); // We just created it above
                         return acc;
                     }, {});
                     let output = "📊 Todo Summary\n";
@@ -470,40 +472,40 @@ async function main() {
                         content: [{ type: "text", text: output }],
                     };
                 }
-                case "todo:help": {
+                case "todo_help": {
                     let helpText = "";
-                    if (!args.command || args.command === "all") {
+                    if (!typedArgs.command || typedArgs.command === "all") {
                         helpText = `🔧 MCP Todo Manager Help
 =======================
 
 Available commands:
 
-📝 todo:add - Add a new task
+📝 todo_add - Add a new task
    Required: project, title
    Optional: description, priority, tags, due, assignee
 
-📋 todo:list - List tasks with filters
+📋 todo_list - List tasks with filters
    Optional: project, status, priority, tags, format
 
-✏️  todo:update - Update an existing task
+✏️  todo_update - Update an existing task
    Required: id
    Optional: title, description, priority, status, due, assignee, addTags, removeTags, addNote
 
-🗑️  todo:delete - Delete a task
+🗑️  todo_delete - Delete a task
    Required: id
 
-📊 todo:summary - Get task summary by project
+📊 todo_summary - Get task summary by project
    Optional: project
 
-❓ todo:help - Show this help
+❓ todo_help - Show this help
    Optional: command (specific command to get help for)
 
-Use 'todo:help' with a specific command for detailed information.`;
+Use 'todo_help' with a specific command for detailed information.`;
                     }
                     else {
-                        switch (args.command) {
+                        switch (typedArgs.command) {
                             case "add":
-                                helpText = `📝 todo:add - Add a new task
+                                helpText = `📝 todo_add - Add a new task
 
 Parameters:
 - project (required): Project name this task belongs to
@@ -515,7 +517,7 @@ Parameters:
 - assignee: Person responsible for this task
 
 Example:
-todo:add {
+todo_add {
   "project": "mcp-tools",
   "title": "Add help commands to all tools",
   "description": "Each tool needs a consistent help interface",
@@ -524,7 +526,7 @@ todo:add {
 }`;
                                 break;
                             case "list":
-                                helpText = `📋 todo:list - List tasks with filters
+                                helpText = `📋 todo_list - List tasks with filters
 
 Parameters (all optional):
 - project: Filter by specific project
@@ -534,12 +536,12 @@ Parameters (all optional):
 - format: Output format (table, detailed, summary) - defaults to 'table'
 
 Examples:
-todo:list {}  // List all tasks in table format
-todo:list {"project": "mcp-tools", "status": "open"}
-todo:list {"priority": "high", "format": "detailed"}`;
+todo_list {}  // List all tasks in table format
+todo_list {"project": "mcp-tools", "status": "open"}
+todo_list {"priority": "high", "format": "detailed"}`;
                                 break;
                             case "update":
-                                helpText = `✏️  todo:update - Update an existing task
+                                helpText = `✏️  todo_update - Update an existing task
 
 Parameters:
 - id (required): Task ID to update
@@ -554,25 +556,25 @@ Parameters:
 - addNote: Add a timestamped note to the task
 
 Example:
-todo:update {
+todo_update {
   "id": "task-001",
   "status": "in-progress",
   "addNote": "Started implementation"
 }`;
                                 break;
                             case "delete":
-                                helpText = `🗑️  todo:delete - Delete a task
+                                helpText = `🗑️  todo_delete - Delete a task
 
 Parameters:
 - id (required): Task ID to delete
 
 Example:
-todo:delete {"id": "task-001"}
+todo_delete {"id": "task-001"}
 
 Note: This action cannot be undone!`;
                                 break;
                             case "summary":
-                                helpText = `📊 todo:summary - Get task summary by project
+                                helpText = `📊 todo_summary - Get task summary by project
 
 Parameters:
 - project (optional): Filter by specific project
@@ -584,8 +586,8 @@ Shows:
 - Urgent tasks (high/critical priority + open status)
 
 Example:
-todo:summary {}  // Summary of all projects
-todo:summary {"project": "mcp-tools"}  // Summary of specific project`;
+todo_summary {}  // Summary of all projects
+todo_summary {"project": "mcp-tools"}  // Summary of specific project`;
                                 break;
                         }
                     }
