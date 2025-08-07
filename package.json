@@ -1,7 +1,7 @@
 {
   "name": "mcp-todo-manager",
-  "version": "1.0.0",
-  "description": "MCP tool for unified todo list management across all projects",
+  "version": "1.1.0",
+  "description": "MCP tool for unified todo list management across all projects with enhanced documentation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

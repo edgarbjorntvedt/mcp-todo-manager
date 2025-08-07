@@ -210,7 +210,7 @@ async function main() {
   const server = new Server(
     {
       name: "mcp-todo-manager",
-      version: "1.0.0",
+      version: "1.1.0",
     },
     {
       capabilities: {

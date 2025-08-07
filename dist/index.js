@@ -228,7 +228,7 @@ async function main() {
     await initDataDir();
     const server = new index_js_1.Server({
         name: "mcp-todo-manager",
-        version: "1.0.0",
+        version: "1.1.0",
     }, {
         capabilities: {
             tools: {},
