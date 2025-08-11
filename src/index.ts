@@ -14,7 +14,7 @@ import * as path from "path";
 import { homedir } from "os";
 
 // Define the data directory for storing todos
-const DATA_DIR = path.join(homedir(), ".mcp-todo-manager");
+const DATA_DIR = path.join(homedir(), ".claude-brain", "todo-manager");
 const TODOS_FILE = path.join(DATA_DIR, "todos.json");
 
 // Task schema
